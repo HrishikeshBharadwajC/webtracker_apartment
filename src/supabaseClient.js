@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://VK1Bv8nLZPpBbvhab8minw.supabase.co';
+let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fijgrrqlrtqugpaxbtlz.supabase.co';
 let supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_VK1Bv8nLZPpBbvhab8minw_XJzENMsi';
 
 // Fallback to localStorage settings if env variables are empty

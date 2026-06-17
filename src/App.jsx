@@ -14,14 +14,14 @@ function App() {
   const [editItem, setEditItem] = useState(null);
 
   // Supabase Sync states
-  const [supabaseUrl, setSupabaseUrl] = useStorage('supabaseUrl', 'https://VK1Bv8nLZPpBbvhab8minw.supabase.co');
+  const [supabaseUrl, setSupabaseUrl] = useStorage('supabaseUrl', 'https://fijgrrqlrtqugpaxbtlz.supabase.co');
   const [supabaseKey, setSupabaseKey] = useStorage('supabaseKey', 'sb_publishable_VK1Bv8nLZPpBbvhab8minw_XJzENMsi');
   const [dbSyncStatus, setDbSyncStatus] = useState('disconnected');
 
-  // Upgrade empty local storage keys to hardcoded defaults
+  // Upgrade empty or outdated local storage keys to hardcoded defaults
   useEffect(() => {
-    if (supabaseUrl === '') {
-      setSupabaseUrl('https://VK1Bv8nLZPpBbvhab8minw.supabase.co');
+    if (supabaseUrl === '' || supabaseUrl === 'https://VK1Bv8nLZPpBbvhab8minw.supabase.co') {
+      setSupabaseUrl('https://fijgrrqlrtqugpaxbtlz.supabase.co');
     }
     if (supabaseKey === '') {
       setSupabaseKey('sb_publishable_VK1Bv8nLZPpBbvhab8minw_XJzENMsi');
