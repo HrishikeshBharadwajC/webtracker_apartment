@@ -25,25 +25,34 @@ export default function InventoryTab({
   const [tempBudget, setTempBudget] = useState(budget);
 
   const downloadCSV = () => {
+    if (!items || items.length === 0) {
+      alert("No items to export!");
+      return;
+    }
+
     const headers = ['ID', 'Name', 'Category', 'Cost', 'Status', 'Link', 'Dimensions (W x D x H)'];
     
+    const escapeCSV = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val);
+      // Replace all double quotes with two double quotes, and wrap in double quotes
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
     const rows = items.map(item => {
       const w = item.dimensions?.width || '';
       const d = item.dimensions?.depth || '';
       const h = item.dimensions?.height || '';
       const dimsStr = w || d || h ? `${w}x${d}x${h}` : '';
       
-      const escapedName = `"${item.name.replace(/"/g, '""')}"`;
-      const escapedLink = item.link ? `"${item.link.replace(/"/g, '""')}"` : '""';
-      
       return [
-        item.id,
-        escapedName,
-        item.category,
-        item.cost,
-        item.status,
-        escapedLink,
-        dimsStr
+        escapeCSV(item.id),
+        escapeCSV(item.name),
+        escapeCSV(item.category),
+        escapeCSV(item.cost),
+        escapeCSV(item.status),
+        escapeCSV(item.link),
+        escapeCSV(dimsStr)
       ];
     });
     
@@ -52,7 +61,8 @@ export default function InventoryTab({
       ...rows.map(row => row.join(','))
     ].join('\n');
     
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", url);
@@ -60,6 +70,7 @@ export default function InventoryTab({
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+    URL.revokeObjectURL(url);
   };
 
   // Calculations
@@ -208,8 +219,8 @@ export default function InventoryTab({
           </div>
 
           {/* Search and Add */}
-          <div style={{ display: 'flex', gap: '1rem', flex: 1, justifyContent: 'flex-end', minWidth: '300px' }}>
-            <div style={{ position: 'relative', flex: 1, maxWidth: '280px' }}>
+          <div className="filter-actions">
+            <div className="search-wrapper">
               <input 
                 type="text" 
                 className="form-input" 
@@ -226,23 +237,14 @@ export default function InventoryTab({
               }} />
             </div>
             <button 
-              className="submit-btn" 
+              className="action-btn action-btn-secondary" 
               onClick={downloadCSV} 
-              style={{ 
-                margin: 0, 
-                width: 'auto',
-                background: 'var(--grad-purple)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem'
-              }}
               title="Export items to CSV for Excel/Google Sheets"
             >
               <Download size={16} />
               Export CSV
             </button>
-            <button className="submit-btn" onClick={onOpenAddModal} style={{ margin: 0, width: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <button className="action-btn" onClick={onOpenAddModal}>
               <Plus size={16} />
               Add Item
             </button>

@@ -9,7 +9,7 @@ import { ShoppingCart, Sparkles } from 'lucide-react';
 function App() {
   // Shopping Tracker states (loads default from items.json)
   const [items, setItems] = useStorage('items', itemsData);
-  const [budget, setBudget] = useStorage('budget', 5000.00);
+  const [budget, setBudget] = useStorage('budget', 7000.00);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
@@ -26,7 +26,10 @@ function App() {
     if (supabaseKey === '') {
       setSupabaseKey('sb_publishable_VK1Bv8nLZPpBbvhab8minw_XJzENMsi');
     }
-  }, []);
+    if (budget === 5000.00) {
+      setBudget(7000.00);
+    }
+  }, [budget, setBudget, supabaseUrl, setSupabaseUrl, supabaseKey, setSupabaseKey]);
 
   // Load items from Supabase when connected (and auto-migrate if empty)
   useEffect(() => {
