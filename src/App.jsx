@@ -14,7 +14,7 @@ function App() {
 
   // GitHub Sync states
   const [githubToken, setGithubToken] = useStorage('githubToken', '');
-  const [githubRepo, setGithubRepo] = useStorage('githubRepo', '');
+  const [githubRepo, setGithubRepo] = useStorage('githubRepo', 'HrishikeshBharadwajC/webtracker_apartment');
   const [githubBranch, setGithubBranch] = useStorage('githubBranch', 'main');
   const [syncStatus, setSyncStatus] = useState('');
 
