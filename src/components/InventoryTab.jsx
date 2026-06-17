@@ -18,21 +18,19 @@ export default function InventoryTab({
   onOpenEditModal, 
   budget, 
   onUpdateBudget,
-  githubToken,
-  setGithubToken,
-  githubRepo,
-  setGithubRepo,
-  githubBranch,
-  setGithubBranch,
-  syncStatus,
-  syncToGitHub
+  supabaseUrl,
+  setSupabaseUrl,
+  supabaseKey,
+  setSupabaseKey,
+  dbSyncStatus,
+  onMigrate
 }) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(budget);
-  const [showGitBanner, setShowGitBanner] = useState(true);
-  const [showGitSettings, setShowGitSettings] = useState(false);
+  const [showDbBanner, setShowDbBanner] = useState(true);
+  const [showDbSettings, setShowDbSettings] = useState(false);
 
   const downloadJSON = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(items, null, 2));
@@ -172,8 +170,8 @@ export default function InventoryTab({
 
       </div>
 
-      {/* Git Sync Banner */}
-      {showGitBanner && (
+      {/* Supabase Sync Banner */}
+      {showDbBanner && (
         <div className="glass-panel" style={{ 
           padding: '1rem 1.5rem', 
           borderLeft: '4px solid var(--cyan)', 
@@ -195,16 +193,16 @@ export default function InventoryTab({
             <Info size={18} />
           </div>
           <div style={{ flex: 1, minWidth: '250px' }}>
-            <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: '#ffffff' }}>Save to Git Repository</h4>
+            <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: '#ffffff' }}>Real-time Database Sync Available</h4>
             <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-              Your updates save locally. To make them permanent in Git, click <strong>Download JSON</strong> and replace <code>src/data/items.json</code>, or <strong>Link GitHub Account</strong> below to sync automatically.
+              Connect a free **Supabase** database to sync your items across all devices. No Personal Access Tokens required! Click <strong>Link Database</strong> below to configure.
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button 
-              onClick={() => setShowGitSettings(!showGitSettings)}
+              onClick={() => setShowDbSettings(!showDbSettings)}
               style={{
-                background: showGitSettings ? 'rgba(0, 242, 254, 0.2)' : 'rgba(0, 242, 254, 0.1)',
+                background: showDbSettings ? 'rgba(0, 242, 254, 0.2)' : 'rgba(0, 242, 254, 0.1)',
                 border: '1px solid rgba(0, 242, 254, 0.3)',
                 color: 'var(--cyan)',
                 cursor: 'pointer',
@@ -215,10 +213,10 @@ export default function InventoryTab({
                 transition: 'all 0.2s ease'
               }}
             >
-              {showGitSettings ? 'Hide Config' : 'Link GitHub Account'}
+              {showDbSettings ? 'Hide Config' : 'Link Database'}
             </button>
             <button 
-              onClick={() => setShowGitBanner(false)}
+              onClick={() => setShowDbBanner(false)}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -235,8 +233,8 @@ export default function InventoryTab({
         </div>
       )}
 
-      {/* GitHub Sync Settings Panel */}
-      {showGitSettings && (
+      {/* Supabase Sync Settings Panel */}
+      {showDbSettings && (
         <div className="glass-panel" style={{ 
           padding: '1.25rem 1.5rem', 
           borderTop: '1px solid var(--border-glass)',
@@ -245,81 +243,110 @@ export default function InventoryTab({
           gap: '1rem',
           animation: 'slideDown 0.2s ease'
         }}>
-          <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              🔗 GitHub Direct Commit Sync
+              ⚙️ Supabase Database Connection
             </h4>
-            {syncStatus && (
-              <span style={{ 
-                fontSize: '0.75rem', 
-                color: syncStatus.includes('Error') ? '#ff85a1' : 'var(--cyan)',
-                background: 'rgba(255,255,255,0.05)',
-                padding: '0.2rem 0.5rem',
-                borderRadius: '4px'
-              }}>
-                {syncStatus}
-              </span>
-            )}
+            <span style={{ 
+              fontSize: '0.75rem', 
+              color: dbSyncStatus === 'connected' ? '#10b981' : dbSyncStatus.includes('error') ? '#ff85a1' : 'var(--cyan)',
+              background: 'rgba(255,255,255,0.05)',
+              padding: '0.2rem 0.5rem',
+              borderRadius: '4px',
+              textTransform: 'capitalize'
+            }}>
+              Status: {dbSyncStatus}
+            </span>
           </div>
+          
           <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-            Provide a GitHub Personal Access Token (PAT) with <code>repo</code> write scope, along with repository details. Once set up, any changes to items (add, edit, delete) will immediately commit to <code>src/data/items.json</code> in your repo!
+            To save items without a PAT: Create a free database at <strong><a href="https://supabase.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>supabase.com</a></strong>, run the SQL setup script to create the <code>items</code> table, and paste your public credentials below.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>
-                GitHub Personal Access Token (PAT)
+                Supabase Project URL
+              </label>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="https://your-project-id.supabase.co"
+                value={supabaseUrl}
+                onChange={(e) => setSupabaseUrl(e.target.value)}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>
+                Supabase Anon Public API Key
               </label>
               <input 
                 type="password" 
                 className="form-input" 
-                placeholder="ghp_xxxxxxxxxxxx"
-                value={githubToken}
-                onChange={(e) => setGithubToken(e.target.value)}
-              />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>
-                Repository (owner/repo)
-              </label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="username/apartment_move_tracker"
-                value={githubRepo}
-                onChange={(e) => setGithubRepo(e.target.value)}
-              />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>
-                Branch
-              </label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="main"
-                value={githubBranch}
-                onChange={(e) => setGithubBranch(e.target.value)}
+                placeholder="public-anon-key"
+                value={supabaseKey}
+                onChange={(e) => setSupabaseKey(e.target.value)}
               />
             </div>
           </div>
+
+          <div style={{
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid var(--border-glass)',
+            borderRadius: '6px',
+            padding: '0.75rem 1rem',
+            fontSize: '0.75rem',
+            color: 'var(--text-secondary)'
+          }}>
+            <strong>SQL Schema Setup:</strong> Run this script in the Supabase SQL Editor to create your table and configure permissions:
+            <pre style={{ 
+              background: 'rgba(0,0,0,0.3)', 
+              padding: '0.5rem', 
+              borderRadius: '4px', 
+              overflowX: 'auto', 
+              fontSize: '0.7rem',
+              fontFamily: 'monospace',
+              color: '#a5f3fc',
+              marginTop: '0.5rem',
+              userSelect: 'all'
+            }}>
+{`create table items (
+  id text primary key,
+  name text not null,
+  link text,
+  category text,
+  cost numeric default 0,
+  status text default 'To Buy',
+  dimensions jsonb default '{"width": 0, "depth": 0, "height": 0}'::jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table items enable row level security;
+create policy "Allow read" on items for select using (true);
+create policy "Allow insert" on items for insert with check (true);
+create policy "Allow update" on items for update using (true);
+create policy "Allow delete" on items for delete using (true);`}
+            </pre>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <button 
-              onClick={() => syncToGitHub(items)}
-              disabled={!githubToken || !githubRepo}
+              onClick={onMigrate}
+              disabled={dbSyncStatus !== 'connected'}
               className="submit-btn"
               style={{ 
                 margin: 0, 
                 width: 'auto',
                 padding: '0.4rem 1rem',
                 fontSize: '0.8rem',
-                opacity: (!githubToken || !githubRepo) ? 0.5 : 1,
-                cursor: (!githubToken || !githubRepo) ? 'not-allowed' : 'pointer'
+                opacity: dbSyncStatus !== 'connected' ? 0.5 : 1,
+                cursor: dbSyncStatus !== 'connected' ? 'not-allowed' : 'pointer'
               }}
             >
-              Push Force Sync Now
+              Upload Local Items to Database
             </button>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              🔒 Security Note: Token is saved purely in your local browser storage.
+              🔓 Note: These public keys are safe to commit to Git or share.
             </span>
           </div>
         </div>

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStorage } from './hooks/useStorage';
 import InventoryTab from './components/InventoryTab';
 import AddItemModal from './components/AddItemModal';
 import itemsData from './data/items.json';
+import { updateSupabaseClient } from './supabaseClient';
 import { ShoppingCart, Sparkles } from 'lucide-react';
 
 function App() {
@@ -12,93 +13,123 @@ function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
-  // GitHub Sync states
-  const [githubToken, setGithubToken] = useStorage('githubToken', '');
-  const [githubRepo, setGithubRepo] = useStorage('githubRepo', 'HrishikeshBharadwajC/webtracker_apartment');
-  const [githubBranch, setGithubBranch] = useStorage('githubBranch', 'main');
-  const [syncStatus, setSyncStatus] = useState('');
+  // Supabase Sync states
+  const [supabaseUrl, setSupabaseUrl] = useStorage('supabaseUrl', '');
+  const [supabaseKey, setSupabaseKey] = useStorage('supabaseKey', '');
+  const [dbSyncStatus, setDbSyncStatus] = useState('disconnected');
 
-  // Sync to GitHub API function
-  const syncToGitHub = async (newItems) => {
-    if (!githubToken || !githubRepo) return;
-    
-    setSyncStatus('Syncing with GitHub...');
-    try {
-      const [owner, repo] = githubRepo.split('/');
-      if (!owner || !repo) {
-        throw new Error('Invalid repository format. Use owner/repo.');
+  // Load items from Supabase when connected
+  useEffect(() => {
+    const fetchDbItems = async () => {
+      if (!supabaseUrl || !supabaseKey) {
+        setDbSyncStatus('disconnected');
+        return;
       }
       
-      const url = `https://api.github.com/repos/${owner}/${repo}/contents/src/data/items.json`;
-      const headers = {
-        'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      };
-
-      // 1. Fetch current file SHA (required by GitHub API to update files)
-      let sha = null;
+      setDbSyncStatus('connecting');
       try {
-        const getRes = await fetch(`${url}?ref=${githubBranch}`, { headers });
-        if (getRes.status === 200) {
-          const data = await getRes.json();
-          sha = data.sha;
-        } else if (getRes.status !== 404) {
-          throw new Error(`Failed to fetch file info: status ${getRes.status}`);
+        const client = updateSupabaseClient(supabaseUrl, supabaseKey);
+        if (!client) {
+          throw new Error('Could not initialize database client.');
+        }
+        
+        const { data, error } = await client
+          .from('items')
+          .select('*')
+          .order('created_at', { ascending: true });
+          
+        if (error) throw error;
+        
+        if (data) {
+          setItems(data);
+          setDbSyncStatus('connected');
         }
       } catch (err) {
-        console.error('Error fetching SHA:', err);
+        console.error('Supabase fetch error:', err);
+        setDbSyncStatus(`error: ${err.message}`);
       }
+    };
+    
+    fetchDbItems();
+  }, [supabaseUrl, supabaseKey]);
 
-      // 2. Commit updated file content
-      const content = btoa(unescape(encodeURIComponent(JSON.stringify(newItems, null, 2))));
-      const body = {
-        message: 'Update items.json via NestSpace Move Tracker UI',
-        content,
-        branch: githubBranch
-      };
-      if (sha) {
-        body.sha = sha;
-      }
-
-      const putRes = await fetch(url, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(body)
-      });
-
-      if (putRes.ok) {
-        setSyncStatus('Saved directly to GitHub!');
-        setTimeout(() => setSyncStatus(''), 4000);
-      } else {
-        const errData = await putRes.json();
-        throw new Error(errData.message || 'Failed to commit file.');
-      }
-    } catch (error) {
-      console.error('GitHub Sync Error:', error);
-      setSyncStatus(`Sync Error: ${error.message}`);
+  // Migrate local storage items to the Supabase database
+  const migrateLocalToDb = async () => {
+    if (!supabaseUrl || !supabaseKey || items.length === 0) return;
+    
+    setDbSyncStatus('migrating');
+    try {
+      const client = updateSupabaseClient(supabaseUrl, supabaseKey);
+      const { error } = await client
+        .from('items')
+        .upsert(items, { onConflict: 'id' });
+      if (error) throw error;
+      setDbSyncStatus('connected');
+      alert('Local items successfully uploaded to the database!');
+    } catch (err) {
+      console.error('Migration error:', err);
+      setDbSyncStatus(`error: ${err.message}`);
+      alert(`Upload failed: ${err.message}`);
     }
   };
 
   // Budget calculations
   const totalCost = items.reduce((acc, item) => acc + item.cost, 0);
 
-  const handleAddItem = (newItem) => {
+  const handleAddItem = async (newItem) => {
     const updated = [...items, newItem];
     setItems(updated);
-    syncToGitHub(updated);
+    
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const client = updateSupabaseClient(supabaseUrl, supabaseKey);
+        const { error } = await client
+          .from('items')
+          .insert([newItem]);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Failed to insert item to Supabase:', err);
+        alert(`Error saving to database: ${err.message}`);
+      }
+    }
   };
 
-  const handleEditItem = (updatedItem) => {
+  const handleEditItem = async (updatedItem) => {
     const updated = items.map(item => item.id === updatedItem.id ? updatedItem : item);
     setItems(updated);
-    syncToGitHub(updated);
+    
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const client = updateSupabaseClient(supabaseUrl, supabaseKey);
+        const { error } = await client
+          .from('items')
+          .update(updatedItem)
+          .eq('id', updatedItem.id);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Failed to update item in Supabase:', err);
+        alert(`Error updating database: ${err.message}`);
+      }
+    }
   };
 
-  const handleDeleteItem = (itemId) => {
+  const handleDeleteItem = async (itemId) => {
     const updated = items.filter(item => item.id !== itemId);
     setItems(updated);
-    syncToGitHub(updated);
+    
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const client = updateSupabaseClient(supabaseUrl, supabaseKey);
+        const { error } = await client
+          .from('items')
+          .delete()
+          .eq('id', itemId);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Failed to delete item from Supabase:', err);
+        alert(`Error deleting from database: ${err.message}`);
+      }
+    }
   };
 
   return (
@@ -145,14 +176,12 @@ function App() {
           onOpenEditModal={(item) => { setEditItem(item); setIsAddModalOpen(true); }}
           budget={budget}
           onUpdateBudget={setBudget}
-          githubToken={githubToken}
-          setGithubToken={setGithubToken}
-          githubRepo={githubRepo}
-          setGithubRepo={setGithubRepo}
-          githubBranch={githubBranch}
-          setGithubBranch={setGithubBranch}
-          syncStatus={syncStatus}
-          syncToGitHub={syncToGitHub}
+          supabaseUrl={supabaseUrl}
+          setSupabaseUrl={setSupabaseUrl}
+          supabaseKey={supabaseKey}
+          setSupabaseKey={setSupabaseKey}
+          dbSyncStatus={dbSyncStatus}
+          onMigrate={migrateLocalToDb}
         />
       </main>
 
