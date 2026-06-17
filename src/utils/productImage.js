@@ -6,6 +6,10 @@
 // dedicated backend. Nothing is persisted — images are always fetched fresh
 // from the link. A short-lived in-memory map only de-duplicates requests
 // within the current session so the same link isn't fetched twice at once.
+//
+// Some sites (e.g. Wayfair) block scrapers and expose no usable og:image. For
+// those we fall back to a rendered screenshot of the product page, which the
+// metadata service hosts on its own CDN (so it isn't hotlink-protected).
 
 const METADATA_ENDPOINT = 'https://api.microlink.io';
 
@@ -22,6 +26,36 @@ export function isValidLink(link) {
   } catch {
     return false;
   }
+}
+
+// Wrap an image URL in a public image proxy. Many retailer CDNs hotlink-protect
+// their images (they reject cross-origin <img> requests with a 403 based on the
+// Referer/Origin). The proxy fetches the image server-side — without our site's
+// referrer — and re-serves it with open CORS, which recovers those images.
+export function proxiedImageUrl(url) {
+  if (!url) return url;
+  const stripped = url.replace(/^https?:\/\//, '');
+  return `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}`;
+}
+
+// Single metadata request. When `screenshot` is true, asks the service to
+// render the page and returns the screenshot URL (hosted on its own CDN).
+async function requestImage(link, screenshot) {
+  const params = new URLSearchParams({ url: link });
+  if (screenshot) params.set('screenshot', 'true');
+
+  const res = await fetch(`${METADATA_ENDPOINT}/?${params.toString()}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Metadata request failed (${res.status})`);
+
+  const payload = await res.json();
+  const data = payload && payload.data ? payload.data : {};
+
+  if (screenshot) {
+    return (data.screenshot && data.screenshot.url) || (data.image && data.image.url) || null;
+  }
+  return (data.image && data.image.url) || (data.logo && data.logo.url) || null;
 }
 
 // Returns the already-resolved image URL for a link this session, or undefined
@@ -41,16 +75,14 @@ export async function fetchProductImage(link) {
 
   const request = (async () => {
     try {
-      const endpoint = `${METADATA_ENDPOINT}/?url=${encodeURIComponent(link)}`;
-      const res = await fetch(endpoint, { headers: { Accept: 'application/json' } });
-      if (!res.ok) throw new Error(`Metadata request failed (${res.status})`);
+      // 1. Fast path: read the page's Open Graph / logo image.
+      let image = await requestImage(link, false);
 
-      const payload = await res.json();
-      const data = payload && payload.data ? payload.data : {};
-      const image =
-        (data.image && data.image.url) ||
-        (data.logo && data.logo.url) ||
-        null;
+      // 2. Fall back to a rendered screenshot for pages that expose no usable
+      //    image (e.g. scraper-blocked retailers like Wayfair).
+      if (!image) {
+        image = await requestImage(link, true);
+      }
 
       sessionMemo.set(link, image);
       return image;
