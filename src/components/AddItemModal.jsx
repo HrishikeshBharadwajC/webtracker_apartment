@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Link as LinkIcon, Sparkles } from 'lucide-react';
+import { X, Link as LinkIcon, Sparkles, Image as ImageIcon } from 'lucide-react';
+import ProductImage from './ProductImage';
 
 const CATEGORIES = [
   'Bedroom Furniture',
@@ -228,8 +229,8 @@ export default function AddItemModal({ isOpen, onClose, onAddItem, onEditItem, e
               }} />
             </div>
             {parsingMsg && (
-              <span style={{ 
-                fontSize: '0.75rem', 
+              <span style={{
+                fontSize: '0.75rem',
                 color: parsingMsg.includes('Successfully') ? 'var(--cyan)' : '#ff85a1',
                 marginTop: '0.25rem',
                 display: 'block'
@@ -238,6 +239,17 @@ export default function AddItemModal({ isOpen, onClose, onAddItem, onEditItem, e
               </span>
             )}
           </div>
+
+          {/* Auto-extracted product image preview (captured from the link) */}
+          {link && (
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <ImageIcon size={14} color="var(--cyan)" />
+                Product Image (auto-captured from link)
+              </label>
+              <ProductImage link={link} alt={name || 'Product preview'} className="modal-image-preview" />
+            </div>
+          )}
 
           {/* Name & Cost */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
