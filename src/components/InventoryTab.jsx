@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Search, Trash2, ShoppingBag, DollarSign, Wallet, CheckCircle, ExternalLink, HelpCircle, Edit, Download, Info } from 'lucide-react';
+import ProductImage from './ProductImage';
 
 const CATEGORIES = [
   'All',
@@ -268,9 +269,12 @@ export default function InventoryTab({
         <div className="items-grid">
           {filteredItems.map(item => (
             <div key={item.id} className="glass-panel item-card">
-              
+
               {/* Card top */}
               <div>
+                {/* Product image extracted from the purchase link */}
+                <ProductImage link={item.link} alt={item.name} />
+
                 <div className="item-header">
                   <span className="item-category">{item.category}</span>
                   {item.link && (
