@@ -28,7 +28,7 @@ function App() {
     }
   }, []);
 
-  // Load items from Supabase when connected
+  // Load items from Supabase when connected (and auto-migrate if empty)
   useEffect(() => {
     const fetchDbItems = async () => {
       if (!supabaseUrl || !supabaseKey) {
@@ -51,8 +51,18 @@ function App() {
         if (error) throw error;
         
         if (data) {
-          setItems(data);
-          setDbSyncStatus('connected');
+          if (data.length === 0 && items.length > 0) {
+            // Auto-migrate local items to database if empty
+            setDbSyncStatus('migrating');
+            const { error: upsertError } = await client
+              .from('items')
+              .upsert(items, { onConflict: 'id' });
+            if (upsertError) throw upsertError;
+            setDbSyncStatus('connected');
+          } else {
+            setItems(data);
+            setDbSyncStatus('connected');
+          }
         }
       } catch (err) {
         console.error('Supabase fetch error:', err);
@@ -62,26 +72,6 @@ function App() {
     
     fetchDbItems();
   }, [supabaseUrl, supabaseKey]);
-
-  // Migrate local storage items to the Supabase database
-  const migrateLocalToDb = async () => {
-    if (!supabaseUrl || !supabaseKey || items.length === 0) return;
-    
-    setDbSyncStatus('migrating');
-    try {
-      const client = updateSupabaseClient(supabaseUrl, supabaseKey);
-      const { error } = await client
-        .from('items')
-        .upsert(items, { onConflict: 'id' });
-      if (error) throw error;
-      setDbSyncStatus('connected');
-      alert('Local items successfully uploaded to the database!');
-    } catch (err) {
-      console.error('Migration error:', err);
-      setDbSyncStatus(`error: ${err.message}`);
-      alert(`Upload failed: ${err.message}`);
-    }
-  };
 
   // Budget calculations
   const totalCost = items.reduce((acc, item) => acc + item.cost, 0);
@@ -186,12 +176,6 @@ function App() {
           onOpenEditModal={(item) => { setEditItem(item); setIsAddModalOpen(true); }}
           budget={budget}
           onUpdateBudget={setBudget}
-          supabaseUrl={supabaseUrl}
-          setSupabaseUrl={setSupabaseUrl}
-          supabaseKey={supabaseKey}
-          setSupabaseKey={setSupabaseKey}
-          dbSyncStatus={dbSyncStatus}
-          onMigrate={migrateLocalToDb}
         />
       </main>
 
