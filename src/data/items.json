@@ -1,0 +1,54 @@
+[
+  {
+    "id": "item_1",
+    "link": "https://www.ikea.com/us/en/p/soderhamn-3-seat-section-samsta-dark-gray-s99902239/",
+    "name": "Söderhamn 3-Seat Couch",
+    "category": "Bedroom Furniture",
+    "cost": 549.00,
+    "status": "To Buy",
+    "dimensions": {
+      "width": 78,
+      "depth": 39,
+      "height": 33
+    }
+  },
+  {
+    "id": "item_2",
+    "link": "https://www.ikea.com/us/en/p/malm-bed-frame-high-black-brown-luroey-s69009475/",
+    "name": "Malm Queen Bed Frame",
+    "category": "Bedroom Furniture",
+    "cost": 299.00,
+    "status": "Ordered",
+    "dimensions": {
+      "width": 66,
+      "depth": 83,
+      "height": 38
+    }
+  },
+  {
+    "id": "item_3",
+    "link": "https://www.amazon.com/LG-OLED-65-Inch-Processor-Smart/dp/B0CXF3JSJ9/",
+    "name": "LG OLED 65\" Smart TV",
+    "category": "Smart Home Gadgets",
+    "cost": 1299.99,
+    "status": "Arrived",
+    "dimensions": {
+      "width": 57,
+      "depth": 10,
+      "height": 33
+    }
+  },
+  {
+    "id": "item_4",
+    "link": "https://www.amazon.com/Philips-Hue-White-Ambiance-Starter/dp/B07351P9QD/",
+    "name": "Philips Hue Bulb Kit",
+    "category": "Smart Home Gadgets",
+    "cost": 119.99,
+    "status": "To Buy",
+    "dimensions": {
+      "width": 6,
+      "depth": 6,
+      "height": 8
+    }
+  }
+]
