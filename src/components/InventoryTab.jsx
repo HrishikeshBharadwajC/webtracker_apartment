@@ -24,11 +24,39 @@ export default function InventoryTab({
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(budget);
 
-  const downloadJSON = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(items, null, 2));
+  const downloadCSV = () => {
+    const headers = ['ID', 'Name', 'Category', 'Cost', 'Status', 'Link', 'Dimensions (W x D x H)'];
+    
+    const rows = items.map(item => {
+      const w = item.dimensions?.width || '';
+      const d = item.dimensions?.depth || '';
+      const h = item.dimensions?.height || '';
+      const dimsStr = w || d || h ? `${w}x${d}x${h}` : '';
+      
+      const escapedName = `"${item.name.replace(/"/g, '""')}"`;
+      const escapedLink = item.link ? `"${item.link.replace(/"/g, '""')}"` : '""';
+      
+      return [
+        item.id,
+        escapedName,
+        item.category,
+        item.cost,
+        item.status,
+        escapedLink,
+        dimsStr
+      ];
+    });
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "items.json");
+    downloadAnchor.setAttribute("href", url);
+    downloadAnchor.setAttribute("download", "apartment_items.csv");
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -199,21 +227,20 @@ export default function InventoryTab({
             </div>
             <button 
               className="submit-btn" 
-              onClick={downloadJSON} 
+              onClick={downloadCSV} 
               style={{ 
                 margin: 0, 
                 width: 'auto',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border-glass)',
+                background: 'var(--grad-purple)',
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.4rem'
               }}
-              title="Download items.json file to save back to Git"
+              title="Export items to CSV for Excel/Google Sheets"
             >
               <Download size={16} />
-              Download JSON
+              Export CSV
             </button>
             <button className="submit-btn" onClick={onOpenAddModal} style={{ margin: 0, width: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Plus size={16} />
